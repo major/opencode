@@ -36,9 +36,9 @@ export namespace Server {
 
   export const Default = lazy(() => ControlPlaneRoutes())
 
-  export const ControlPlaneRoutes = (opts?: { cors?: string[] }): Hono => {
+  export const ControlPlaneRoutes = (opts?: { cors?: string[] }): { app: Hono } => {
     const app = new Hono()
-    return app
+    const route = app
       .onError(errorHandler(log))
       .use((c, next) => {
         // Allow CORS preflight requests to succeed without auth.
@@ -235,10 +235,11 @@ export namespace Server {
         },
       )
       .use(WorkspaceRouterMiddleware)
+    return { app: route }
   }
 
   export function createApp(opts: { cors?: string[] }) {
-    return ControlPlaneRoutes(opts)
+    return ControlPlaneRoutes(opts).app
   }
 
   export async function openapi() {
@@ -246,7 +247,7 @@ export namespace Server {
     // hono-openapi can see describeRoute metadata (`.route()` wraps
     // handlers when the sub-app has a custom errorHandler, which
     // strips the metadata symbol).
-    const app = ControlPlaneRoutes()
+    const app = ControlPlaneRoutes().app
     InstanceRoutes(app)
     const result = await generateSpecs(app, {
       documentation: {
@@ -272,7 +273,7 @@ export namespace Server {
     cors?: string[]
   }) {
     url = new URL(`http://${opts.hostname}:${opts.port}`)
-    const app = ControlPlaneRoutes({ cors: opts.cors })
+    const app = ControlPlaneRoutes({ cors: opts.cors }).app
     const args = {
       hostname: opts.hostname,
       idleTimeout: 0,
